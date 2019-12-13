@@ -18,7 +18,7 @@
 */
 
 // uncomment the below line to enable five button support
-//#define FIVEBUTTONS
+#define FIVEBUTTONS
 
 static const uint32_t cardCookie = 322417479;
 
@@ -156,7 +156,7 @@ void resetSettings() {
   mySettings.eq = 1;
   mySettings.locked = false;
   mySettings.standbyTimer = 0;
-  mySettings.invertVolumeButtons = true;
+  mySettings.invertVolumeButtons = false;
   mySettings.shortCuts[0].folder = 0;
   mySettings.shortCuts[1].folder = 0;
   mySettings.shortCuts[2].folder = 0;
@@ -642,6 +642,7 @@ MFRC522::StatusCode status;
 #define busyPin 4
 #define shutdownPin 7
 #define openAnalogPin A7
+#define simLoadPin A6
 
 #ifdef FIVEBUTTONS
 #define buttonFourPin A3
@@ -664,6 +665,38 @@ bool ignoreDownButton = false;
 bool ignoreButtonFour = false;
 bool ignoreButtonFive = false;
 #endif
+
+class KeepAlive
+{
+  long intervalStart;
+  bool active;
+
+  public:
+  void setup()
+  {
+    intervalStart = millis();
+    active = false;
+    pinMode(simLoadPin, OUTPUT);
+    digitalWrite(simLoadPin, LOW);
+    return;
+  }
+
+  void loop()
+  {
+    if(millis()-intervalStart>3000 | (millis()-intervalStart>100 & active))
+    {
+      active = !active;
+      if(active)
+        digitalWrite(simLoadPin, HIGH);
+      else
+        digitalWrite(simLoadPin, LOW);
+      intervalStart = millis();
+    }
+    return;
+  }
+};
+
+static KeepAlive keeper;
 
 /// Funktionen für den Standby Timer (z.B. über Pololu-Switch oder Mosfet)
 
@@ -775,6 +808,7 @@ void setup() {
 #endif
   pinMode(shutdownPin, OUTPUT);
   digitalWrite(shutdownPin, LOW);
+  keeper.setup();
 
 
   // RESET --- ALLE DREI KNÖPFE BEIM STARTEN GEDRÜCKT HALTEN -> alle EINSTELLUNGEN werden gelöscht
@@ -946,6 +980,7 @@ void playShortCut(uint8_t shortCut) {
 void loop() {
   do {
     checkStandbyAtMillis();
+    keeper.loop();
     mp3.loop();
 
     // Modifier : WIP!
