@@ -669,28 +669,55 @@ bool ignoreButtonFive = false;
 class KeepAlive
 {
   long intervalStart;
+  long standbyStart;
   bool active;
+  bool goToBed;
+
+  void reset()
+  {
+    if(millis()-standbyStart > 3000)
+      Serial.println(F("Stay awake restart!"));
+    intervalStart = millis();
+    standbyStart = intervalStart;
+    active = false;
+    goToBed = false;
+    digitalWrite(simLoadPin, LOW);
+  }
 
   public:
   void setup()
   {
-    intervalStart = millis();
-    active = false;
     pinMode(simLoadPin, OUTPUT);
-    digitalWrite(simLoadPin, LOW);
+    reset();
     return;
   }
 
-  void loop()
+  void loop(bool isPlaying)
   {
-    if(millis()-intervalStart>3000 | (millis()-intervalStart>100 & active))
+    if(!isPlaying)
     {
-      active = !active;
-      if(active)
-        digitalWrite(simLoadPin, HIGH);
-      else
-        digitalWrite(simLoadPin, LOW);
-      intervalStart = millis();
+      if(!goToBed & (millis()-intervalStart>5000 | (millis()-intervalStart>100 & active)))
+      {
+        active = !active;
+        if(millis()-standbyStart > 180000)
+        {
+          active = false;
+          goToBed = true;
+          Serial.println(F("Go to bed!"));
+        }
+        if(active)
+        {
+          digitalWrite(simLoadPin, HIGH);
+          Serial.println(F("Stay awake!"));
+        }
+        else
+          digitalWrite(simLoadPin, LOW);
+        intervalStart = millis();
+      }
+    }
+    else
+    {
+      reset();
     }
     return;
   }
@@ -980,7 +1007,7 @@ void playShortCut(uint8_t shortCut) {
 void loop() {
   do {
     checkStandbyAtMillis();
-    keeper.loop();
+    keeper.loop(isPlaying());
     mp3.loop();
 
     // Modifier : WIP!
