@@ -642,7 +642,6 @@ MFRC522::StatusCode status;
 #define busyPin 4
 #define shutdownPin 7
 #define openAnalogPin A7
-#define simLoadPin A6
 
 #ifdef FIVEBUTTONS
 #define buttonFourPin A3
@@ -665,65 +664,6 @@ bool ignoreDownButton = false;
 bool ignoreButtonFour = false;
 bool ignoreButtonFive = false;
 #endif
-
-class KeepAlive
-{
-  long intervalStart;
-  long standbyStart;
-  bool active;
-  bool goToBed;
-
-  void reset()
-  {
-    if(millis()-standbyStart > 3000)
-      Serial.println(F("Stay awake restart!"));
-    intervalStart = millis();
-    standbyStart = intervalStart;
-    active = false;
-    goToBed = false;
-    digitalWrite(simLoadPin, LOW);
-  }
-
-  public:
-  void setup()
-  {
-    pinMode(simLoadPin, OUTPUT);
-    reset();
-    return;
-  }
-
-  void loop(bool isPlaying)
-  {
-    if(!isPlaying)
-    {
-      if(!goToBed & (millis()-intervalStart>5000 | (millis()-intervalStart>100 & active)))
-      {
-        active = !active;
-        if(millis()-standbyStart > 180000)
-        {
-          active = false;
-          goToBed = true;
-          Serial.println(F("Go to bed!"));
-        }
-        if(active)
-        {
-          digitalWrite(simLoadPin, HIGH);
-          Serial.println(F("Stay awake!"));
-        }
-        else
-          digitalWrite(simLoadPin, LOW);
-        intervalStart = millis();
-      }
-    }
-    else
-    {
-      reset();
-    }
-    return;
-  }
-};
-
-static KeepAlive keeper;
 
 /// Funktionen für den Standby Timer (z.B. über Pololu-Switch oder Mosfet)
 
@@ -835,8 +775,6 @@ void setup() {
 #endif
   pinMode(shutdownPin, OUTPUT);
   digitalWrite(shutdownPin, LOW);
-  keeper.setup();
-
 
   // RESET --- ALLE DREI KNÖPFE BEIM STARTEN GEDRÜCKT HALTEN -> alle EINSTELLUNGEN werden gelöscht
   if (digitalRead(buttonPause) == LOW && digitalRead(buttonUp) == LOW &&
@@ -1007,7 +945,6 @@ void playShortCut(uint8_t shortCut) {
 void loop() {
   do {
     checkStandbyAtMillis();
-    keeper.loop(isPlaying());
     mp3.loop();
 
     // Modifier : WIP!
