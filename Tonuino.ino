@@ -642,6 +642,7 @@ MFRC522::StatusCode status;
 #define busyPin 4
 #define shutdownPin 7
 #define openAnalogPin A7
+#define aliveLoad A5
 
 #ifdef FIVEBUTTONS
 #define buttonFourPin A3
@@ -681,7 +682,18 @@ void disablestandbyTimer() {
   sleepAtMillis = 0;
 }
 
+bool isPlaying() {
+  return !digitalRead(busyPin);
+}
+
+bool aliveLoadActive = false;
+long aliveLoadPause = 2500;
+long aliveLoadOnTime = 500;
+long aliveLoadLastToggle = 0;
+
 void checkStandbyAtMillis() {
+  if(isPlaying() & sleepAtMillis != 0)
+    disablestandbyTimer();
   if (sleepAtMillis != 0 && millis() > sleepAtMillis) {
     Serial.println(F("=== power off!"));
     // enter sleep state
@@ -698,10 +710,25 @@ void checkStandbyAtMillis() {
     cli();  // Disable interrupts
     sleep_mode();
   }
-}
-
-bool isPlaying() {
-  return !digitalRead(busyPin);
+  else
+  {
+    long timeSpan = millis() - aliveLoadLastToggle;
+    if((!aliveLoadActive & timeSpan > aliveLoadPause) | (aliveLoadActive & timeSpan > aliveLoadOnTime))
+    {
+      aliveLoadActive = !aliveLoadActive;
+      if(aliveLoadActive)
+      {
+        Serial.println(F("=== load on!"));
+        digitalWrite(aliveLoad, HIGH);
+      }
+      else
+      {
+        Serial.println(F("=== load off!"));
+        digitalWrite(aliveLoad, LOW);
+      }
+      aliveLoadLastToggle = millis();
+    }
+  }
 }
 
 void waitForTrackToFinish() {
@@ -775,6 +802,9 @@ void setup() {
 #endif
   pinMode(shutdownPin, OUTPUT);
   digitalWrite(shutdownPin, LOW);
+  pinMode(aliveLoad, OUTPUT);
+  digitalWrite(aliveLoad, LOW);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   // RESET --- ALLE DREI KNÖPFE BEIM STARTEN GEDRÜCKT HALTEN -> alle EINSTELLUNGEN werden gelöscht
   if (digitalRead(buttonPause) == LOW && digitalRead(buttonUp) == LOW &&
