@@ -686,10 +686,10 @@ bool isPlaying() {
   return !digitalRead(busyPin);
 }
 
-//bool aliveLoadActive = false;
-//long aliveLoadPause = 2500;
-//long aliveLoadOnTime = 500;
-//long aliveLoadLastToggle = 0;
+bool aliveLoadActive = false;
+long aliveLoadPause = 2500;
+long aliveLoadOnTime = 300;
+long aliveLoadLastToggle = 0;
 
 void checkStandbyAtMillis() {
   if(isPlaying() & sleepAtMillis != 0)
@@ -711,25 +711,25 @@ void checkStandbyAtMillis() {
     cli();  // Disable interrupts
     sleep_mode();
   }
-//  else
-//  {
-//    long timeSpan = millis() - aliveLoadLastToggle;
-//    if((!aliveLoadActive & timeSpan > aliveLoadPause) | (aliveLoadActive & timeSpan > aliveLoadOnTime))
-//    {
-//      aliveLoadActive = !aliveLoadActive;
-//      if(aliveLoadActive)
-//      {
-//        Serial.println(F("=== load on!"));
-//        digitalWrite(aliveLoad, HIGH);
-//      }
-//      else
-//      {
-//        Serial.println(F("=== load off!"));
-//        digitalWrite(aliveLoad, LOW);
-//      }
-//      aliveLoadLastToggle = millis();
-//    }
-//  }
+  else
+  {
+    long timeSpan = millis() - aliveLoadLastToggle;
+    if((!aliveLoadActive & timeSpan > aliveLoadPause) | (aliveLoadActive & timeSpan > aliveLoadOnTime))
+    {
+      aliveLoadActive = !aliveLoadActive;
+      if(aliveLoadActive)
+      {
+        Serial.println(F("=== load on!"));
+        digitalWrite(aliveLoad, HIGH);
+      }
+      else
+      {
+        Serial.println(F("=== load off!"));
+        digitalWrite(aliveLoad, LOW);
+      }
+      aliveLoadLastToggle = millis();
+    }
+  }
 }
 
 void waitForTrackToFinish() {
@@ -804,7 +804,7 @@ void setup() {
   pinMode(shutdownPin, OUTPUT);
   digitalWrite(shutdownPin, LOW);
   pinMode(aliveLoad, OUTPUT);
-  digitalWrite(aliveLoad, HIGH);
+  digitalWrite(aliveLoad, LOW);
 
   // RESET --- ALLE DREI KNÖPFE BEIM STARTEN GEDRÜCKT HALTEN -> alle EINSTELLUNGEN werden gelöscht
   if (digitalRead(buttonPause) == LOW && digitalRead(buttonUp) == LOW &&
