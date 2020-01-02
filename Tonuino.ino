@@ -687,14 +687,17 @@ bool isPlaying() {
 }
 
 bool aliveLoadActive = false;
-long aliveLoadPause = 2500;
-long aliveLoadOnTime = 300;
+const long aliveLoadPause = 2500;
+const long aliveLoadOnTime = 300;
+const long noButtonTimeLimit = 3600000;
 long aliveLoadLastToggle = 0;
+long aliveLoadLastButton = 0;
 
 void checkStandbyAtMillis() {
   if(isPlaying() & sleepAtMillis != 0)
     disablestandbyTimer();
-  if (sleepAtMillis != 0 && millis() > sleepAtMillis) {
+  long timeSpan = millis() - aliveLoadLastButton;
+  if ((sleepAtMillis != 0 && millis() > sleepAtMillis) || (timeSpan > noButtonTimeLimit)){
     Serial.println(F("=== power off!"));
     // enter sleep state
     digitalWrite(shutdownPin, HIGH);
@@ -713,7 +716,7 @@ void checkStandbyAtMillis() {
   }
   else
   {
-    long timeSpan = millis() - aliveLoadLastToggle;
+    timeSpan = millis() - aliveLoadLastToggle;
     if((!aliveLoadActive & timeSpan > aliveLoadPause) | (aliveLoadActive & timeSpan > aliveLoadOnTime))
     {
       aliveLoadActive = !aliveLoadActive;
@@ -774,6 +777,7 @@ void setup() {
 
   // activate standby timer
   setstandbyTimer();
+  aliveLoadLastButton = millis();
 
   // DFPlayer Mini initialisieren
   mp3.begin();
@@ -823,11 +827,21 @@ void setup() {
 
 void readButtons() {
   pauseButton.read();
+  if(pauseButton.isPressed() && !pauseButton.pressedFor(LONG_PRESS * 3))
+    aliveLoadLastButton = millis();
   upButton.read();
+  if(upButton.isPressed() && !upButton.pressedFor(LONG_PRESS * 3))
+    aliveLoadLastButton = millis();
   downButton.read();
+  if(downButton.isPressed() && !downButton.pressedFor(LONG_PRESS * 3))
+    aliveLoadLastButton = millis();
 #ifdef FIVEBUTTONS
   buttonFour.read();
+  if(buttonFour.isPressed() && !buttonFour.pressedFor(LONG_PRESS * 3))
+    aliveLoadLastButton = millis();
   buttonFive.read();
+  if(buttonFive.isPressed() && !buttonFive.pressedFor(LONG_PRESS * 3))
+    aliveLoadLastButton = millis();
 #endif
 }
 
@@ -1381,6 +1395,7 @@ uint8_t voiceMenu(int numberOfOptions, int startMessage, int messageOffset,
   Serial.print(numberOfOptions);
   Serial.println(F(" Options)"));
   do {
+    checkStandbyAtMillis();
     if (Serial.available() > 0) {
       int optionSerial = Serial.parseInt();
       if (optionSerial != 0 && optionSerial <= numberOfOptions)
